@@ -92,6 +92,7 @@
 	 (args (get-arguments-list links))
 	 proc
 	 (time (get-universal-time)))
+    (or (probe-file *log-file* )(close (open *log-file* :direction :output :if-does-not-exist :create)))
     (ensure-directories-exist name)
     (ccl:cwd name)
     (format t "downloading ~a~%total ~a,log: tail -f ~a~%" name (length args) *log-file*)
