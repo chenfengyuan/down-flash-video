@@ -14,12 +14,12 @@
 ;; along with this program; if not, write to the Free Software
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 (in-package :cl)
-(declaim (optimize (debug 3)))
+(declaim (optimize (speed 3)))
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (setf (CCL:PATHNAME-ENCODING-NAME) :utf-8)
   (setf ccl:*default-external-format* :utf-8)
   (setf ccl:*default-file-character-encoding* :utf-8)
-   (dolist (p '(:drakma :cl-mechanize :cl-base64 :cl-ppcre))
+  (dolist (p '(:drakma :cl-mechanize :cl-base64 :cl-ppcre))
     (unless (find-package p)
       (ql:quickload p))))
 (defpackage :cfy.down-flash-video
@@ -28,7 +28,8 @@
   (:import-from :cl-base64 :string-to-base64-string)
   (:import-from :drakma :http-request)
   (:import-from :babel :octets-to-string)
-  (:import-from :flexi-streams :string-to-octets))
+  (:import-from :flexi-streams :string-to-octets)
+  (:export :run-wget))
 (in-package :cfy.down-flash-video)
 (defparameter *log-file* "/tmp/down-flash-video.log")
 (defparameter *user-agent* "Opera/9.80 (X11; Linux x86_64; U; en) Presto/2.10.289 Version/12.01"
@@ -68,7 +69,7 @@
 (declaim (inline output-name-format))
 (defun output-name-format (links)
   (let* ((digits (ceiling (log (length links) 10)))
-	 (name-format (format nil "~~~d,'0d" digits)))
+	 (name-format (format nil "~~~d,'0d.flv" digits)))
     name-format))
 (defun get-arguments-list (links)
   (let ((name-format (output-name-format links)))
@@ -78,31 +79,33 @@
 	  collect (list "-nc" "--user-agent=Opera/9.80 (X11; Linux i686; U; en) Presto/2.6.30 Version/10.60" l "-O" (format nil name-format i)))))
 (let ((count 0))
   (defun wget (arg hook)
-    (format t "正在下载第~d个~%" (incf count))
+    (format t "downloading the ~:r now." (incf count))
     (ccl:run-program "wget" arg
 		     :output *log-file*
 		     :wait nil
 		     :status-hook hook
-		     :if-output-exists :supersede)))
+		     :if-output-exists :append)))
 (defun run-wget (video-url)
   (let* ((result (get-download-urls-and-name video-url))
 	 (name (cdr result))
 	 (links (car result))
 	 (args (get-arguments-list links))
-	 proc)
+	 proc
+	 (time (get-universal-time)))
     (ensure-directories-exist name)
     (ccl:cwd name)
-    (format t "开始下载 ~a~%总共~a个,log:~a~%" name (length args) *log-file*)
+    (format t "downloading ~a~%total ~a,log: tail -f ~a~%" name (length args) *log-file*)
     (finish-output *standard-output*)
     (labels ((rerun-wget (x)
     	       (case (ccl:external-process-status x)
     		 (:exited
-    		  (when args
-    		    (finish-output *standard-output*)
-    		    (setf proc
-    			  (wget (pop args) #'rerun-wget)))))
-    	       (unless args
-    		 (ccl:quit))))
+		  (format t "time total: ~d ~%" (- (get-universal-time) time))
+		  (finish-output *standard-output*)
+		  (setf time (get-universal-time))
+		  (if args
+		      (setf proc
+			    (wget (pop args) #'rerun-wget))
+		      (ccl:quit))))))
       (setf proc (wget (pop args) #'rerun-wget)))
     (ccl:wait-for-signal 2 nil)
     (ccl:signal-external-process proc 2)
