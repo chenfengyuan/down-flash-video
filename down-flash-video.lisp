@@ -106,6 +106,6 @@
       (setf proc (wget (pop args) #'rerun-wget)))
     (ccl:wait-for-signal 2 nil)
     (ccl:signal-external-process proc 2)
-    (ccl:quit)))
+    (ccl:quit 1)))
 (defun hello (str)
   (format t "~a,测试2~%" str))
