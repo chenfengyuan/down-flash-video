@@ -28,7 +28,7 @@
   (:import-from :drakma :http-request)
   (:import-from :babel :octets-to-string)
   (:import-from :flexi-streams :string-to-octets)
-  (:export :run-wget :save))
+  (:export :run-wget :*proc*))
 (in-package :cfy.down-flash-video)
 
 ;; http://stackoverflow.com/questions/9950680/unix-signal-handling-in-common-lisp
@@ -125,7 +125,7 @@
 		      (setf *proc*
 			    (wget (pop args) #'rerun-wget))
 		      (ccl:quit)))
-		 (otherwise (ccl:quit 1)))))
+		 (otherwise (ccl:quit 130)))))
       (setf *proc* (wget (pop args) #'rerun-wget)))
     (loop (sleep 99999))))
 (defun hello (str)

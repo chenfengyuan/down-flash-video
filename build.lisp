@@ -1,4 +1,3 @@
-(in-package :dfv)
 (defmacro set-signal-handler (signo &body body)
   (let ((handler (gensym "HANDLER")))
     `(progn
@@ -10,7 +9,7 @@
 		      :toplevel-function
 		      (lambda ()
 			(set-signal-handler 2
-			  (when *proc* (ccl:signal-external-process *proc* 2))
-			  (ccl:quit 1))
+			  (when dfv:*proc* (ccl:signal-external-process dfv:*proc* 2))
+			  (ccl:quit 130))
 			(cfy.down-flash-video:RUN-WGET (cadr ccl:*command-line-argument-list*)))
 		      :prepend-kernel t)
