@@ -13,12 +13,12 @@
 ;; along with this program; if not, write to the Free Software
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 (in-package :cl)
-(declaim (optimize (speed 3)))
+(declaim (optimize (debug 3)))
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (setf (CCL:PATHNAME-ENCODING-NAME) :utf-8)
   (setf ccl:*default-external-format* :utf-8)
   (setf ccl:*default-file-character-encoding* :utf-8)
-  (dolist (p '(:drakma :cl-mechanize :cl-base64 :cl-ppcre))
+  (dolist (p '(:drakma :cl-mechanize :cl-base64 :cl-ppcre :cffi))
     (unless (find-package p)
       (ql:quickload p))))
 (defpackage :cfy.down-flash-video
@@ -30,6 +30,10 @@
   (:import-from :flexi-streams :string-to-octets)
   (:export :run-wget :save))
 (in-package :cfy.down-flash-video)
+
+;; http://stackoverflow.com/questions/9950680/unix-signal-handling-in-common-lisp
+(defparameter *proc* nil)
+
 
 (defparameter *log-file* "down-flash-video.log")
 (defparameter *user-agent* "Opera/9.80 (X11; Linux x86_64; U; en) Presto/2.10.289 Version/12.01"
@@ -103,7 +107,6 @@
 	 (name (cdr result))
 	 (links (car result))
 	 (args (get-arguments-list links))
-	 proc
 	 (time (get-universal-time))
 	 (path (namestring (ccl:cwd "."))))
     (setf *log-file* (concatenate 'string path *log-file*))
@@ -119,15 +122,12 @@
 		  (finish-output *standard-output*)
 		  (setf time (get-universal-time))
 		  (if args
-		      (setf proc
+		      (setf *proc*
 			    (wget (pop args) #'rerun-wget))
 		      (ccl:quit)))
 		 (otherwise (ccl:quit 1)))))
-      (setf proc (wget (pop args) #'rerun-wget)))
-    (ccl:wait-for-signal 2 nil)
-    (ccl:signal-external-process proc 2)
-    (ccl:quit 1)))
+      (setf *proc* (wget (pop args) #'rerun-wget)))
+    (loop (sleep 99999))))
 (defun hello (str)
   (format t "~a,测试2~%" str))
-(defun save (file)
-  (ccl:save-application file :toplevel-function (lambda ()(cfy.down-flash-video:RUN-WGET (cadr ccl:*command-line-argument-list*))) :prepend-kernel t))
+
