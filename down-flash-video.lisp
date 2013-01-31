@@ -28,13 +28,13 @@
   (:import-from :drakma :http-request)
   (:import-from :babel :octets-to-string)
   (:import-from :flexi-streams :string-to-octets)
-  (:export :run-wget :*proc*))
+  (:export :run-wget :*proc* :getppid :kill))
 (in-package :cfy.down-flash-video)
-
-;; http://stackoverflow.com/questions/9950680/unix-signal-handling-in-common-lisp
+(defun getppid nil
+  (cffi:foreign-funcall "getppid" :int))
+(defun kill (pid signal)
+  (cffi:foreign-funcall "kill" :int pid :int signal :int))
 (defparameter *proc* nil)
-
-
 (defparameter *log-file* "down-flash-video.log")
 (defparameter *user-agent* "Opera/9.80 (X11; Linux x86_64; U; en) Presto/2.10.289 Version/12.01"
   "the user agent is given to the flvcd")
@@ -125,7 +125,9 @@
 		      (setf *proc*
 			    (wget (pop args) #'rerun-wget))
 		      (ccl:quit)))
-		 (otherwise (ccl:quit 130)))))
+		 (otherwise (progn
+			      (dfv:kill (dfv:getppid) 2)
+			      (ccl:quit 130))))))
       (setf *proc* (wget (pop args) #'rerun-wget)))
     (loop (sleep 99999))))
 (defun hello (str)
