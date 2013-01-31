@@ -1,5 +1,4 @@
 ;; Copyright (C) 2012 Chen Fengyuan (jeova.sanctus.unus+po2db (at) gmail.org)
-
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU General Public License
 ;; as published by the Free Software Foundation; either version 2
@@ -29,9 +28,10 @@
   (:import-from :drakma :http-request)
   (:import-from :babel :octets-to-string)
   (:import-from :flexi-streams :string-to-octets)
-  (:export :run-wget))
+  (:export :run-wget :save))
 (in-package :cfy.down-flash-video)
-(defparameter *log-file* "/tmp/down-flash-video.log")
+
+(defparameter *log-file* "down-flash-video.log")
 (defparameter *user-agent* "Opera/9.80 (X11; Linux x86_64; U; en) Presto/2.10.289 Version/12.01"
   "the user agent is given to the flvcd")
 (defparameter *flvcd-format* "http://www.flvcd.com/parse.php?&format=~a&kw=~a"
@@ -85,13 +85,28 @@
 		     :wait nil
 		     :status-hook hook
 		     :if-output-exists :append)))
+(defun url-filter (url)
+  (let ((p (position #\? url)))
+    (if p
+	(subseq url 0 p)
+	url)))
 (defun run-wget (video-url)
-  (let* ((result (get-download-urls-and-name video-url))
+  (let* ((result (let ((r (get-download-urls-and-name (url-filter video-url))))
+		   (if (car r)
+		       r
+		       (progn
+			 (format t "~a~%"
+				 (cond
+				   ((string= (cdr r) "FLVCD硕鼠官网|FLV下载/") "The url doesn't seem correct.")
+				   (t "It seems that FLVCD can't parse the url.")))
+			 (ccl:quit 2)))))
 	 (name (cdr result))
 	 (links (car result))
 	 (args (get-arguments-list links))
 	 proc
-	 (time (get-universal-time)))
+	 (time (get-universal-time))
+	 (path (namestring (ccl:cwd "."))))
+    (setf *log-file* (concatenate 'string path *log-file*))
     (or (probe-file *log-file* )(close (open *log-file* :direction :output :if-does-not-exist :create)))
     (ensure-directories-exist name)
     (ccl:cwd name)
@@ -106,10 +121,13 @@
 		  (if args
 		      (setf proc
 			    (wget (pop args) #'rerun-wget))
-		      (ccl:quit))))))
+		      (ccl:quit)))
+		 (otherwise (ccl:quit 1)))))
       (setf proc (wget (pop args) #'rerun-wget)))
     (ccl:wait-for-signal 2 nil)
     (ccl:signal-external-process proc 2)
     (ccl:quit 1)))
 (defun hello (str)
   (format t "~a,测试2~%" str))
+(defun save (file)
+  (ccl:save-application file :toplevel-function (lambda ()(cfy.down-flash-video:RUN-WGET (cadr ccl:*command-line-argument-list*))) :prepend-kernel t))
