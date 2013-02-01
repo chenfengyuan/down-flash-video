@@ -36,6 +36,7 @@
   (cffi:foreign-funcall "kill" :int pid :int signal :int))
 (defparameter *proc* nil)
 (defparameter *downloading-filename* nil)
+(defparameter *download-count* 0)
 (defparameter *log-file* "down-flash-video.log")
 (defparameter *user-agent* "Opera/9.80 (X11; Linux x86_64; U; en) Presto/2.10.289 Version/12.01"
   "the user agent is given to the flvcd")
@@ -52,6 +53,11 @@
 (defun get-uri-string (uri)
   (princ-to-string uri))
 (declaim (inline drakma-gbk-convert))
+(defun get-program-output (program &optional args)
+  (with-output-to-string (out)
+    (ccl:run-program program args
+		     :output out
+		     :wait t)))
 (defun drakma-gbk-convert (str)
   (octets-to-string
    (string-to-octets
@@ -83,14 +89,36 @@
 	  for i from 0
 	  for l in links
 	  collect (list "-nc" "--user-agent=Opera/9.80 (X11; Linux i686; U; en) Presto/2.6.30 Version/10.60" l "-O" (format nil name-format i)))))
-(let ((count 0))
-  (defun wget (arg hook)
-    (format t "downloading the ~:r now." (incf count))
-    (ccl:run-program *downloader* arg
-		     :output *log-file*
-		     :wait nil
-		     :status-hook hook
-		     :if-output-exists :append)))
+(defun wget-size (arg)
+  (pop arg)
+  (setf arg (list "--spider" (nth 0 arg) (nth 1 arg) "-O" "/dev/null"))
+  ;; can't use tsocks here.....use wget directly....
+  (let* ((r (get-program-output "wget" arg))
+	 (size (multiple-value-bind (all size)
+		   (cl-ppcre:scan-to-strings "Length:\\s+(\\d+)" r)
+		 (declare (ignore all))
+		 (if (> (length size) 0)
+		     (aref size 0)
+		     nil))))
+    (if (stringp size)
+	(parse-integer size))))
+(defun get-file-size (file)
+  (with-open-file (in file)
+    (file-length in)))
+(defun full-download-p (arg)
+  (let* ((wget-size (wget-size arg))
+	 (file (car (last arg)))
+	 (file-size (if (probe-file file)
+			(get-file-size file)
+			0)))
+    (= file-size wget-size)))
+(defun wget (arg hook)
+  (format t "downloading the ~:r now." (incf *download-count*))
+  (ccl:run-program *downloader* arg
+		   :output *log-file*
+		   :wait nil
+		   :status-hook hook
+		   :if-output-exists :append))
 (defun url-filter (url)
   (let ((p (position #\? url)))
     (if p
@@ -112,13 +140,21 @@
 	 (time (get-universal-time))
 	 (path (namestring (ccl:cwd "."))))
     (when (ccl:getenv "DOWNLOADER")
-      (setf *downloader* (ccl:getenv "DOWNLOADER")))
+      (setf *downloader* (ccl:getenv "DOWNLOADER"))
+      (format t "Use downloader:~a~%" *downloader*))
     (setf *log-file* (concatenate 'string path *log-file*))
     (or (probe-file *log-file* )(close (open *log-file* :direction :output :if-does-not-exist :create)))
     (ensure-directories-exist name)
     (ccl:cwd name)
     (format t "downloading ~a~%total ~a,log: tail -f ~a~%" name (length args) *log-file*)
     (finish-output *standard-output*)
+    (loop for arg in args
+	  for file = (car (last arg))
+	  for i from 0
+	  do (format t "checking the ~:r now.~%" i)
+	  do (if (probe-file file)
+		 (unless (full-download-p arg)
+		   (delete-file file))))
     (labels ((rerun-wget (x)
     	       (case (ccl:external-process-status x)
     		 (:exited
