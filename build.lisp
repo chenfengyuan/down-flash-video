@@ -10,6 +10,8 @@
 		      :toplevel-function
 		      (lambda ()
 			(set-signal-handler 2
+			  (when (and dfv:*downloading-filename* (probe-file dfv:*downloading-filename*))
+			    (delete-file dfv:*downloading-filename*))
 			  (when dfv:*proc* (ccl:signal-external-process dfv:*proc* 2))
 			  (dfv:kill (dfv:getppid) 2)
 			  (ccl:quit 130))

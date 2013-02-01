@@ -28,18 +28,20 @@
   (:import-from :drakma :http-request)
   (:import-from :babel :octets-to-string)
   (:import-from :flexi-streams :string-to-octets)
-  (:export :run-wget :*proc* :getppid :kill))
+  (:export :run-wget :*proc* :getppid :kill :*downloading-filename*))
 (in-package :cfy.down-flash-video)
 (defun getppid nil
   (cffi:foreign-funcall "getppid" :int))
 (defun kill (pid signal)
   (cffi:foreign-funcall "kill" :int pid :int signal :int))
 (defparameter *proc* nil)
+(defparameter *downloading-filename* nil)
 (defparameter *log-file* "down-flash-video.log")
 (defparameter *user-agent* "Opera/9.80 (X11; Linux x86_64; U; en) Presto/2.10.289 Version/12.01"
   "the user agent is given to the flvcd")
 (defparameter *flvcd-format* "http://www.flvcd.com/parse.php?&format=~a&kw=~a"
   "the url format")
+(defparameter *downloader* "wget")
 (defun flvxz-format (video-url)
   (format nil "http://www.flvxz.com/getFlv.php?url=~a"
 	  (string-to-base64-string video-url)))
@@ -84,7 +86,7 @@
 (let ((count 0))
   (defun wget (arg hook)
     (format t "downloading the ~:r now." (incf count))
-    (ccl:run-program "wget" arg
+    (ccl:run-program *downloader* arg
 		     :output *log-file*
 		     :wait nil
 		     :status-hook hook
@@ -109,6 +111,8 @@
 	 (args (get-arguments-list links))
 	 (time (get-universal-time))
 	 (path (namestring (ccl:cwd "."))))
+    (when (ccl:getenv "DOWNLOADER")
+      (setf *downloader* (ccl:getenv "DOWNLOADER")))
     (setf *log-file* (concatenate 'string path *log-file*))
     (or (probe-file *log-file* )(close (open *log-file* :direction :output :if-does-not-exist :create)))
     (ensure-directories-exist name)
@@ -122,13 +126,20 @@
 		  (finish-output *standard-output*)
 		  (setf time (get-universal-time))
 		  (if args
-		      (setf *proc*
-			    (wget (pop args) #'rerun-wget))
+		      (let ((arg (pop args)))
+			(setf
+			 *downloading-filename* (car (last arg))
+			 *proc* (wget arg #'rerun-wget)))
 		      (ccl:quit)))
 		 (otherwise (progn
 			      (dfv:kill (dfv:getppid) 2)
+			      (when (and *downloading-filename* (probe-file dfv:*downloading-filename*))
+				(delete-file *downloading-filename*))
 			      (ccl:quit 130))))))
-      (setf *proc* (wget (pop args) #'rerun-wget)))
+      (let ((arg (pop args)))
+			(setf
+			 *downloading-filename* (car (last arg))
+			 *proc* (wget arg #'rerun-wget))))
     (loop (sleep 99999))))
 (defun hello (str)
   (format t "~a,测试2~%" str))
