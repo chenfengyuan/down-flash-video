@@ -116,7 +116,7 @@
     (file-length in)))
 (defun full-download-p (arg)
   (let* ((wget-size (wget-size arg))
-	 (file #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (car (last arg)))
+	 (file #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg))))
 	 (file-size (if (probe-file file)
 			(get-file-size file)
 			0)))
@@ -170,16 +170,16 @@
       (format t "Use downloader:~a~%" *downloader*)
       (finish-output))
     (setf *log-file* (concatenate 'string path *log-file*))
-    (or (probe-file #+ccl *log-file* #+sbcl (sb-ext:parse-native-namestring *log-file*))
+    (or (probe-file #+ccl (ccl:native-to-pathname *log-file*) #+sbcl (sb-ext:parse-native-namestring *log-file*))
 	(close (open *log-file* :direction :output :if-does-not-exist :create)))
-    (ensure-directories-exist #+sbcl (sb-ext:parse-native-namestring name) #+ccl name)
+    (ensure-directories-exist #+sbcl (sb-ext:parse-native-namestring name) #+ccl (ccl:native-to-pathname name))
     #+ccl (ccl:cwd name)
     #+sbcl (sb-posix:chdir name)
     (format t "downloading ~a~%total ~a,log: tail -f ~a~%Checking file size~%" name (length args) *log-file*)
     (finish-output)
     (loop with new-args = nil
 	  for arg in args
-	  for file = #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (car (last arg))
+	  for file = #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg)))
 	  for i from 0
 	  do (if (probe-file file)
 		 (if (full-download-p arg)
@@ -202,7 +202,7 @@
 		  (if args
 		      (let ((arg (pop args)))
 			(setf
-			 *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (car (last arg))
+			 *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg)))
 			 *proc* (wget arg #'rerun-wget)))
 		      #+ccl (ccl:quit)
 		      #+sbcl (sb-ext:exit)))
@@ -214,7 +214,7 @@
 			      #+sbcl (sb-ext:exit :code 130))))))
       (let ((arg (pop args)))
 			(setf
-			 *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (car (last arg))
+			 *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg)))
 			 *proc* (wget arg #'rerun-wget))))
     (loop (sleep 99999))))
 (defun hello (str)
