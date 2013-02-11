@@ -173,8 +173,8 @@
     (or (probe-file #+ccl (ccl:native-to-pathname *log-file*) #+sbcl (sb-ext:parse-native-namestring *log-file*))
 	(close (open *log-file* :direction :output :if-does-not-exist :create)))
     (ensure-directories-exist #+sbcl (sb-ext:parse-native-namestring name) #+ccl (ccl:native-to-pathname name))
-    #+ccl (ccl:cwd name)
-    #+sbcl (sb-posix:chdir name)
+    #+ccl (ccl:cwd (ccl:native-to-pathname name))
+    #+sbcl (sb-posix:chdir (sb-ext:parse-native-namestring name))
     (format t "downloading ~a~%total ~a,log: tail -f ~a~%Checking file size~%" name (length args) *log-file*)
     (finish-output)
     (loop with new-args = nil
