@@ -130,16 +130,16 @@
 	(finish-output))
       (setf *total-time-print-p* nil))
   #+ccl (ccl:run-program *downloader* arg
-			    :output *log-file*
-			    :wait nil
-			    :status-hook hook
-			    :if-output-exists :append)
+			 :output *log-file*
+			 :wait nil
+			 :status-hook hook
+			 :if-output-exists :append)
   #+sbcl (sb-ext:run-program *downloader* arg
-				:output *log-file*
-				:wait nil
-				:status-hook hook
-				:if-output-exists :append
-				:search t))
+			     :output *log-file*
+			     :wait nil
+			     :status-hook hook
+			     :if-output-exists :append
+			     :search t))
 (defun url-filter (url)
   (let ((p (position #\? url)))
     (if p
@@ -164,11 +164,11 @@
 			   #+sbcl (sb-posix:getcwd))))
     (when #+ccl (ccl:getenv "DOWNLOADER")
 	  #+sbcl (sb-posix:getenv "DOWNLOADER")
-      (setf *downloader*
-	    #+ccl (ccl:getenv "DOWNLOADER")
-	    #+sbcl (sb-posix:getenv "DOWNLOADER"))
-      (format t "Use downloader:~a~%" *downloader*)
-      (finish-output))
+	  (setf *downloader*
+		#+ccl (ccl:getenv "DOWNLOADER")
+		#+sbcl (sb-posix:getenv "DOWNLOADER"))
+	  (format t "Use downloader:~a~%" *downloader*)
+	  (finish-output))
     (setf *log-file* (concatenate 'string path *log-file*))
     (or (probe-file #+ccl (ccl:native-to-pathname *log-file*) #+sbcl (sb-ext:parse-native-namestring *log-file*))
 	(close (open *log-file* :direction :output :if-does-not-exist :create)))
@@ -194,26 +194,26 @@
     (labels ((rerun-wget (x)
     	       (case #+ccl (ccl:external-process-status x)
 		     #+sbcl (sb-ext:process-status x)
-    		 (:exited
-		  (when *total-time-print-p*
-		    (format t "total time: ~d ~%" (- (get-universal-time) time)))
-		  (finish-output *standard-output*)
-		  (setf time (get-universal-time))
-		  (if args
-		      (let ((arg (pop args)))
-			(if arg
-			    (setf *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg))))
-			    (setf *downloading-filename* nil))
-			(setf
-			 *proc* (wget arg #'rerun-wget)))
-		      #+ccl (ccl:quit)
-		      #+sbcl (sb-ext:exit)))
-		 (otherwise (progn
-			      (dfv:kill (dfv:getppid) 2)
-			      (when (and *downloading-filename* (probe-file dfv:*downloading-filename*))
-				(delete-file *downloading-filename*))
-			      #+ccl (ccl:quit 130)
-			      #+sbcl (sb-ext:exit :code 130))))))
+		     (:exited
+		      (when *total-time-print-p*
+			(format t "total time: ~d ~%" (- (get-universal-time) time)))
+		      (finish-output *standard-output*)
+		      (setf time (get-universal-time))
+		      (if args
+			  (let ((arg (pop args)))
+			    (if arg
+				(setf *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg))))
+				(setf *downloading-filename* nil))
+			    (setf
+			     *proc* (wget arg #'rerun-wget)))
+			  #+ccl (ccl:quit)
+			  #+sbcl (sb-ext:exit)))
+		     (otherwise (progn
+				  (dfv:kill (dfv:getppid) 2)
+				  (when (and *downloading-filename* (probe-file dfv:*downloading-filename*))
+				    (delete-file *downloading-filename*))
+				  #+ccl (ccl:quit 130)
+				  #+sbcl (sb-ext:exit :code 130))))))
       (let ((arg (pop args)))
 	(if arg
 	    (setf *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg))))
