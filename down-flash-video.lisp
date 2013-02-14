@@ -201,8 +201,10 @@
 		  (setf time (get-universal-time))
 		  (if args
 		      (let ((arg (pop args)))
+			(if arg
+			    (setf *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg))))
+			    (setf *downloading-filename* nil))
 			(setf
-			 *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg)))
 			 *proc* (wget arg #'rerun-wget)))
 		      #+ccl (ccl:quit)
 		      #+sbcl (sb-ext:exit)))
@@ -213,9 +215,11 @@
 			      #+ccl (ccl:quit 130)
 			      #+sbcl (sb-ext:exit :code 130))))))
       (let ((arg (pop args)))
-			(setf
-			 *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg)))
-			 *proc* (wget arg #'rerun-wget))))
+	(if arg
+	    (setf *downloading-filename* #+sbcl (sb-ext:parse-native-namestring (concatenate 'string (sb-posix:getcwd) "/" (car (last arg)))) #+ccl (ccl:native-to-pathname (car (last arg))))
+	    (setf *downloading-filename* nil))
+	(setf
+	 *proc* (wget arg #'rerun-wget))))
     (loop (sleep 99999))))
 (defun hello (str)
   (format t "~a,测试2~%" str))
